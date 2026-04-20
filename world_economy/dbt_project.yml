@@ -1,0 +1,24 @@
+name: 'world_economy'
+version: '1.0.0'
+config-version: 2
+
+profile: 'world_economy'
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+test-paths: ["tests"]
+macro-paths: ["macros"]
+
+target-path: "target"
+clean-targets:
+  - "target"
+  - "dbt_modules"
+
+models:
+  world_economy:
+    staging:
+      +materialized: view
+    intermediate:
+      +materialized: view
+    marts:
+      +materialized: table

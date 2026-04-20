@@ -1,0 +1,8 @@
+version: 2
+
+sources:
+  - name: raw
+    database: world-economy-dashboard-493910
+    schema: raw
+    tables:
+      - name: fred_stream

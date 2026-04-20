@@ -1,0 +1,25 @@
+WITH source AS (
+  SELECT * FROM {{ source('raw', 'world_bank_stream') }}
+  WHERE is_valid = TRUE AND value IS NOT NULL
+),
+deduplicated AS (
+  SELECT *,
+    ROW_NUMBER() OVER (
+      PARTITION BY country_code, indicator_name, year
+      ORDER BY processed_at DESC
+    ) AS rn
+  FROM source
+)
+SELECT
+  indicator_name AS indicator_key,
+  UPPER(country_code) AS country_code,
+  country_name,
+  region,
+  income_group,
+  year AS period_year,
+  ROUND(value, 4) AS value,
+  'world_bank' AS data_source,
+  processed_at AS last_updated_at,
+  TO_HEX(MD5(CONCAT(country_code, indicator_name, CAST(year AS STRING)))) AS row_hash
+FROM deduplicated
+WHERE rn = 1
