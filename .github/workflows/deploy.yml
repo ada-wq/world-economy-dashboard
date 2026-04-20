@@ -17,11 +17,39 @@ jobs:
           python-version: '3.11'
       
       - name: Install dbt
-        run: pip install dbt-bigquery==1.7.0
+        run: |
+          python -m pip install --upgrade pip
+          pip install dbt-bigquery==1.7.0
+      
+      - name: Create dbt profile
+        run: |
+          mkdir -p ~/.dbt
+          cat > ~/.dbt/profiles.yml << 'PROF'
+          world_economy:
+            target: dev
+            outputs:
+              dev:
+                type: bigquery
+                method: oauth
+                project: world-economy-dashboard-493910
+                dataset: dbt_dev
+                location: EU
+                threads: 4
+                timeout_seconds: 300
+              prod:
+                type: bigquery
+                method: oauth
+                project: world-economy-dashboard-493910
+                dataset: staging
+                location: EU
+                threads: 8
+                timeout_seconds: 300
+          PROF
       
       - name: dbt compile check
         run: |
           cd world_economy
+          dbt deps
           dbt compile --target dev
 
   deploy:
@@ -31,6 +59,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dbt
+        run: |
+          python -m pip install --upgrade pip
+          pip install dbt-bigquery==1.7.0
+      
       - name: Auth GCP
         uses: google-github-actions/auth@v2
         with:
@@ -39,8 +77,38 @@ jobs:
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
       
+      - name: Create dbt profile
+        run: |
+          mkdir -p ~/.dbt
+          cat > ~/.dbt/profiles.yml << 'PROF'
+          world_economy:
+            target: prod
+            outputs:
+              dev:
+                type: bigquery
+                method: oauth
+                project: world-economy-dashboard-493910
+                dataset: dbt_dev
+                location: EU
+                threads: 4
+                timeout_seconds: 300
+              prod:
+                type: bigquery
+                method: service-account
+                project: world-economy-dashboard-493910
+                dataset: staging
+                location: EU
+                threads: 8
+                timeout_seconds: 300
+                keyfile: /tmp/keyfile.json
+          PROF
+          
+          # Sauvegarder la clé JSON
+          echo '${{ secrets.GCP_SA_KEY }}' > /tmp/keyfile.json
+      
       - name: Run dbt production
         run: |
           cd world_economy
+          dbt deps
           dbt run --target prod
           dbt test --target prod
